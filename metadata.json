@@ -1,0 +1,6 @@
+{
+  "name": "Travel Vehicle Marketplace",
+  "description": "A comprehensive B2B+B2C Travel Vehicle Marketplace where customers find in-city private vehicles, raise inquiries, negotiate costs, and complete bookings, supported by travel agencies and an AI assistant.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
