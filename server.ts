@@ -642,7 +642,7 @@ async function startServer() {
                           smtpFrom.toLowerCase().endsWith('@yahoo.com') || 
                           smtpFrom.toLowerCase().endsWith('@outlook.com') || 
                           smtpFrom.toLowerCase().endsWith('@hotmail.com') || 
-                          smtpFrom.toLowerCase().endsWith('prvasiq.com'); // default fallback is unverified
+                          smtpFrom.toLowerCase().endsWith('@prvasiq.com'); // default fallback is unverified
         
         if (isPublicOrPlaceholder) {
           // Enforce Resend's default onboarding sender to guarantee successful mail dispatch of free tier
@@ -655,7 +655,7 @@ async function startServer() {
 
       if (smtpHost && smtpPort && smtpUser && smtpPass) {
         try {
-          const smtpPortNumber = Number.parseInt(smtpPort, 10);
+          const smtpPortNumber = parseInt(smtpPort, 10);
           const transporter = nodemailer.createTransport({
             host: smtpHost,
             port: smtpPortNumber,
@@ -853,7 +853,7 @@ async function startServer() {
                           smtpFrom.toLowerCase().endsWith('@yahoo.com') || 
                           smtpFrom.toLowerCase().endsWith('@outlook.com') || 
                           smtpFrom.toLowerCase().endsWith('@hotmail.com') || 
-                          smtpFrom.toLowerCase().endsWith('prvasiq.com'); // default fallback is unverified
+                          smtpFrom.toLowerCase().endsWith('@prvasiq.com'); // default fallback is unverified
         
         if (isPublicOrPlaceholder) {
           // Enforce Resend's default onboarding sender to guarantee successful mail dispatch of free tier
@@ -866,7 +866,7 @@ async function startServer() {
 
       if (smtpHost && smtpPort && smtpUser && smtpPass) {
         try {
-          const smtpPortNumber = Number.parseInt(smtpPort, 10);
+          const smtpPortNumber = parseInt(smtpPort, 10);
           const transporter = nodemailer.createTransport({
             host: smtpHost,
             port: smtpPortNumber,
