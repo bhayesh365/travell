@@ -597,69 +597,84 @@ async function startServer() {
     expiresAt: number;
   }
   const pendingOtps = new Map<string, PendingOtp>();
+  const INTERNAL_AUTH_ERROR = 'Internal server error. Please try again.';
+
+  const sendAuthError = (res: express.Response, statusCode: number, error: string) => {
+    if (!res.headersSent) {
+      res.status(statusCode).json({ error });
+    }
+  };
+
+  const handleAuthUnexpectedError = (res: express.Response, endpoint: string, error: unknown) => {
+    console.error(`[Auth ${endpoint}] Unexpected error:`, error);
+    sendAuthError(res, 500, INTERNAL_AUTH_ERROR);
+  };
 
   // Send Registration Verification OTP
   app.post('/api/auth/send-otp', async (req, res) => {
-    const { email } = req.body;
-    if (!email) {
-      res.status(400).json({ error: 'Email address is required' });
-      return;
-    }
-
-    // Generate a secure 6-digit OTP code
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes expiry
-
-    pendingOtps.set(email.toLowerCase().trim(), { otp, expiresAt });
-
-    const smtpHost = process.env.SMTP_HOST;
-    const smtpPort = process.env.SMTP_PORT;
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
-    let smtpFrom = process.env.SMTP_FROM_EMAIL || 'no-reply@prvasiq.com';
-
-    // Auto-detect and fix Resend-specific sender domain restrictions to ensure success
-    const isResend = (smtpHost && smtpHost.toLowerCase().includes('resend')) || 
-                     (smtpUser && smtpUser.toLowerCase() === 'resend');
-    
-    if (isResend) {
-      const isPublicOrPlaceholder = !process.env.SMTP_FROM_EMAIL || 
-                        smtpFrom.toLowerCase().endsWith('@gmail.com') || 
-                        smtpFrom.toLowerCase().endsWith('@yahoo.com') || 
-                        smtpFrom.toLowerCase().endsWith('@outlook.com') || 
-                        smtpFrom.toLowerCase().endsWith('@hotmail.com') || 
-                        smtpFrom.toLowerCase().endsWith('prvasiq.com'); // default fallback is unverified
-      
-      if (isPublicOrPlaceholder) {
-        // Enforce Resend's default onboarding sender to guarantee successful mail dispatch of free tier
-        smtpFrom = 'onboarding@resend.dev';
+    try {
+      const { email } = req.body ?? {};
+      if (typeof email !== 'string' || !email.trim()) {
+        sendAuthError(res, 400, 'Email address is required');
+        return;
       }
-    }
 
-    let emailSent = false;
-    let emailError = '';
+      // Generate a secure 6-digit OTP code
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes expiry
+      const normalizedEmail = email.toLowerCase().trim();
 
-    if (smtpHost && smtpPort && smtpUser && smtpPass) {
-      try {
-        const transporter = nodemailer.createTransport({
-          host: smtpHost,
-          port: parseInt(smtpPort),
-          secure: parseInt(smtpPort) === 465, // true for 465, false for others
-          auth: {
-            user: smtpUser,
-            pass: smtpPass,
-          },
-          tls: {
-            rejectUnauthorized: false
-          }
-        });
+      pendingOtps.set(normalizedEmail, { otp, expiresAt });
 
-        const mailOptions = {
-          from: `"PRVASIQ Travel" <${smtpFrom}>`,
-          to: email,
-          subject: 'PRVASIQ - Your 6-Digit Email Verification Code',
-          text: `Hello,\n\nYour one-time password (OTP) to verify your account with PRVASIQ is: ${otp}\n\nThis code will expire in 10 minutes.\n\nWarm regards,\nPRVASIQ Travel Team`,
-          html: `
+      const smtpHost = process.env.SMTP_HOST;
+      const smtpPort = process.env.SMTP_PORT;
+      const smtpUser = process.env.SMTP_USER;
+      const smtpPass = process.env.SMTP_PASS;
+      let smtpFrom = process.env.SMTP_FROM_EMAIL || 'no-reply@prvasiq.com';
+
+      // Auto-detect and fix Resend-specific sender domain restrictions to ensure success
+      const isResend = (smtpHost && smtpHost.toLowerCase().includes('resend')) || 
+                      (smtpUser && smtpUser.toLowerCase() === 'resend');
+      
+      if (isResend) {
+        const isPublicOrPlaceholder = !process.env.SMTP_FROM_EMAIL || 
+                          smtpFrom.toLowerCase().endsWith('@gmail.com') || 
+                          smtpFrom.toLowerCase().endsWith('@yahoo.com') || 
+                          smtpFrom.toLowerCase().endsWith('@outlook.com') || 
+                          smtpFrom.toLowerCase().endsWith('@hotmail.com') || 
+                          smtpFrom.toLowerCase().endsWith('@prvasiq.com'); // default fallback is unverified
+        
+        if (isPublicOrPlaceholder) {
+          // Enforce Resend's default onboarding sender to guarantee successful mail dispatch of free tier
+          smtpFrom = 'onboarding@resend.dev';
+        }
+      }
+
+      let emailSent = false;
+      let emailError = '';
+
+      if (smtpHost && smtpPort && smtpUser && smtpPass) {
+        try {
+          const smtpPortNumber = parseInt(smtpPort, 10);
+          const transporter = nodemailer.createTransport({
+            host: smtpHost,
+            port: smtpPortNumber,
+            secure: smtpPortNumber === 465, // true for 465, false for others
+            auth: {
+              user: smtpUser,
+              pass: smtpPass,
+            },
+            tls: {
+              rejectUnauthorized: false
+            }
+          });
+
+          const mailOptions = {
+            from: `"PRVASIQ Travel" <${smtpFrom}>`,
+            to: email,
+            subject: 'PRVASIQ - Your 6-Digit Email Verification Code',
+            text: `Hello,\n\nYour one-time password (OTP) to verify your account with PRVASIQ is: ${otp}\n\nThis code will expire in 10 minutes.\n\nWarm regards,\nPRVASIQ Travel Team`,
+            html: `
             <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
               <div style="text-align: center; margin-bottom: 20px;">
                 <h1 style="color: #0f172a; margin: 0; font-size: 24px; letter-spacing: -0.5px;">PRVASIQ</h1>
@@ -679,100 +694,122 @@ async function startServer() {
               </div>
             </div>
           `,
-        };
+          };
 
-        await transporter.sendMail(mailOptions);
-        emailSent = true;
-      } catch (err: any) {
-        console.error('SMTP sending error:', err);
-        emailError = err.message || 'SMTP Configuration Error';
+          await transporter.sendMail(mailOptions);
+          emailSent = true;
+        } catch (err: unknown) {
+          console.error('SMTP sending error:', err);
+          emailError = err instanceof Error ? err.message : 'SMTP Configuration Error';
+        }
       }
-    }
 
-    if (emailSent) {
-      res.json({ success: true, email, simulated: false });
-    } else {
-      console.log(`[PRVASIQ OTP Simulator] Code generated for ${email}: ${otp}`);
-      res.json({
-        success: true,
-        email,
-        simulated: true,
-        sandboxOtp: otp,
-        errorInfo: emailError ? `SMTP inactive (${emailError}). Entered sandbox simulation mode.` : "Entered sandbox simulation mode."
-      });
+      if (emailSent) {
+        res.json({ success: true, email, simulated: false });
+      } else {
+        console.log(`[PRVASIQ OTP Simulator] Code generated for ${email}: ${otp}`);
+        res.json({
+          success: true,
+          email,
+          simulated: true,
+          sandboxOtp: otp,
+          errorInfo: emailError ? `SMTP inactive (${emailError}). Entered sandbox simulation mode.` : "Entered sandbox simulation mode."
+        });
+      }
+    } catch (error) {
+      handleAuthUnexpectedError(res, '/api/auth/send-otp', error);
     }
   });
 
   // Auth Registration with OTP
   app.post('/api/auth/register', (req, res) => {
-    const { name, email, role, password, otp, phone, city, description, address } = req.body;
-    if (!name || !email || !role || !password || !otp) {
-      res.status(400).json({ error: 'Name, email, password, role and OTP are required' });
-      return;
-    }
-    if (password.length < 4) {
-      res.status(400).json({ error: 'Password must be at least 4 characters long' });
-      return;
-    }
+    try {
+      const { name, email, role, password, otp, phone, city, description, address } = req.body ?? {};
+      if (
+        typeof name !== 'string' ||
+        typeof email !== 'string' ||
+        typeof role !== 'string' ||
+        typeof password !== 'string' ||
+        typeof otp !== 'string' ||
+        !name.trim() ||
+        !email.trim() ||
+        !role.trim() ||
+        !password.trim() ||
+        !otp.trim()
+      ) {
+        sendAuthError(res, 400, 'Name, email, password, role and OTP are required');
+        return;
+      }
+      if (password.length < 4) {
+        sendAuthError(res, 400, 'Password must be at least 4 characters long');
+        return;
+      }
 
-    // Verify OTP
-    const emailKey = email.toLowerCase().trim();
-    const recordedOtp = pendingOtps.get(emailKey);
-    if (!recordedOtp) {
-      res.status(400).json({ error: 'No active OTP verification session found for this email. Please request an OTP code.' });
-      return;
-    }
-    if (recordedOtp.expiresAt < Date.now()) {
+      // Verify OTP
+      const emailKey = email.toLowerCase().trim();
+      const recordedOtp = pendingOtps.get(emailKey);
+      if (!recordedOtp) {
+        sendAuthError(res, 400, 'No active OTP verification session found for this email. Please request an OTP code.');
+        return;
+      }
+      if (recordedOtp.expiresAt < Date.now()) {
+        pendingOtps.delete(emailKey);
+        sendAuthError(res, 400, 'OTP code has expired. Please secure a new OTP code.');
+        return;
+      }
+      if (recordedOtp.otp !== otp.trim()) {
+        sendAuthError(res, 400, 'The 6-digit OTP you entered is invalid. Please verify and try again.');
+        return;
+      }
+
+      // OTP match verified!
       pendingOtps.delete(emailKey);
-      res.status(400).json({ error: 'OTP code has expired. Please secure a new OTP code.' });
-      return;
-    }
-    if (recordedOtp.otp !== otp.trim()) {
-      res.status(400).json({ error: 'The 6-digit OTP you entered is invalid. Please verify and try again.' });
-      return;
-    }
 
-    // OTP match verified!
-    pendingOtps.delete(emailKey);
-
-    const existing = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-    if (existing) {
-      res.status(400).json({ error: 'User with this email already exists' });
-      return;
+      const existing = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+      if (existing) {
+        sendAuthError(res, 400, 'User with this email already exists');
+        return;
+      }
+      const newId = role === 'agency' ? `agency-${Date.now()}` : `cust-${Date.now()}`;
+      const newUser: UserProfile = {
+        id: newId,
+        name,
+        email,
+        role,
+        password,
+        phone,
+        city,
+        description,
+        address
+      };
+      users.push(newUser);
+      res.status(201).json(newUser);
+    } catch (error) {
+      handleAuthUnexpectedError(res, '/api/auth/register', error);
     }
-    const newId = role === 'agency' ? `agency-${Date.now()}` : `cust-${Date.now()}`;
-    const newUser: UserProfile = {
-      id: newId,
-      name,
-      email,
-      role,
-      password,
-      phone,
-      city,
-      description,
-      address
-    };
-    users.push(newUser);
-    res.status(201).json(newUser);
   });
 
   app.post('/api/auth/login', (req, res) => {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      res.status(400).json({ error: 'Email and password are required' });
-      return;
+    try {
+      const { email, password } = req.body ?? {};
+      if (typeof email !== 'string' || typeof password !== 'string' || !email.trim() || !password.trim()) {
+        sendAuthError(res, 400, 'Email and password are required');
+        return;
+      }
+      const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+      if (!user) {
+        sendAuthError(res, 404, 'No account found with this email. Please register!');
+        return;
+      }
+      const userPassword = user.password || 'password';
+      if (userPassword !== password) {
+        sendAuthError(res, 400, 'Incorrect password. Please try again.');
+        return;
+      }
+      res.json(user);
+    } catch (error) {
+      handleAuthUnexpectedError(res, '/api/auth/login', error);
     }
-    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-    if (!user) {
-      res.status(404).json({ error: 'No account found with this email. Please register!' });
-      return;
-    }
-    const userPassword = user.password || 'password';
-    if (userPassword !== password) {
-      res.status(400).json({ error: 'Incorrect password. Please try again.' });
-      return;
-    }
-    res.json(user);
   });
 
   // Password Reset In-Memory Store
@@ -780,72 +817,75 @@ async function startServer() {
 
   // Send Password Reset OTP
   app.post('/api/auth/forgot-password-send-otp', async (req, res) => {
-    const { email } = req.body;
-    if (!email) {
-      res.status(400).json({ error: 'Email address is required' });
-      return;
-    }
-
-    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase().trim());
-    if (!user) {
-      res.status(404).json({ error: 'No account found with this email. Please register!' });
-      return;
-    }
-
-    // Generate a secure 6-digit OTP code for password reset
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes expiry
-
-    pendingResetOtps.set(email.toLowerCase().trim(), { otp, expiresAt });
-
-    const smtpHost = process.env.SMTP_HOST;
-    const smtpPort = process.env.SMTP_PORT;
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
-    let smtpFrom = process.env.SMTP_FROM_EMAIL || 'no-reply@prvasiq.com';
-
-    // Auto-detect and fix Resend-specific sender domain restrictions to ensure success
-    const isResend = (smtpHost && smtpHost.toLowerCase().includes('resend')) || 
-                     (smtpUser && smtpUser.toLowerCase() === 'resend');
-    
-    if (isResend) {
-      const isPublicOrPlaceholder = !process.env.SMTP_FROM_EMAIL || 
-                        smtpFrom.toLowerCase().endsWith('@gmail.com') || 
-                        smtpFrom.toLowerCase().endsWith('@yahoo.com') || 
-                        smtpFrom.toLowerCase().endsWith('@outlook.com') || 
-                        smtpFrom.toLowerCase().endsWith('@hotmail.com') || 
-                        smtpFrom.toLowerCase().endsWith('prvasiq.com'); // default fallback is unverified
-      
-      if (isPublicOrPlaceholder) {
-        // Enforce Resend's default onboarding sender to guarantee successful mail dispatch of free tier
-        smtpFrom = 'onboarding@resend.dev';
+    try {
+      const { email } = req.body ?? {};
+      if (typeof email !== 'string' || !email.trim()) {
+        sendAuthError(res, 400, 'Email address is required');
+        return;
       }
-    }
 
-    let emailSent = false;
-    let emailError = '';
+      const normalizedEmail = email.toLowerCase().trim();
+      const user = users.find(u => u.email.toLowerCase() === normalizedEmail);
+      if (!user) {
+        sendAuthError(res, 404, 'No account found with this email. Please register!');
+        return;
+      }
 
-    if (smtpHost && smtpPort && smtpUser && smtpPass) {
-      try {
-        const transporter = nodemailer.createTransport({
-          host: smtpHost,
-          port: parseInt(smtpPort),
-          secure: parseInt(smtpPort) === 465,
-          auth: {
-            user: smtpUser,
-            pass: smtpPass,
-          },
-          tls: {
-            rejectUnauthorized: false
-          }
-        });
+      // Generate a secure 6-digit OTP code for password reset
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes expiry
 
-        const mailOptions = {
-          from: `"PRVASIQ Travel" <${smtpFrom}>`,
-          to: email,
-          subject: 'PRVASIQ - Reset Your Password',
-          text: `Hello,\n\nYour one-time password (OTP) to reset your PRVASIQ password is: ${otp}\n\nThis code will expire in 10 minutes.\n\nWarm regards,\nPRVASIQ Travel Team`,
-          html: `
+      pendingResetOtps.set(normalizedEmail, { otp, expiresAt });
+
+      const smtpHost = process.env.SMTP_HOST;
+      const smtpPort = process.env.SMTP_PORT;
+      const smtpUser = process.env.SMTP_USER;
+      const smtpPass = process.env.SMTP_PASS;
+      let smtpFrom = process.env.SMTP_FROM_EMAIL || 'no-reply@prvasiq.com';
+
+      // Auto-detect and fix Resend-specific sender domain restrictions to ensure success
+      const isResend = (smtpHost && smtpHost.toLowerCase().includes('resend')) || 
+                      (smtpUser && smtpUser.toLowerCase() === 'resend');
+      
+      if (isResend) {
+        const isPublicOrPlaceholder = !process.env.SMTP_FROM_EMAIL || 
+                          smtpFrom.toLowerCase().endsWith('@gmail.com') || 
+                          smtpFrom.toLowerCase().endsWith('@yahoo.com') || 
+                          smtpFrom.toLowerCase().endsWith('@outlook.com') || 
+                          smtpFrom.toLowerCase().endsWith('@hotmail.com') || 
+                          smtpFrom.toLowerCase().endsWith('@prvasiq.com'); // default fallback is unverified
+        
+        if (isPublicOrPlaceholder) {
+          // Enforce Resend's default onboarding sender to guarantee successful mail dispatch of free tier
+          smtpFrom = 'onboarding@resend.dev';
+        }
+      }
+
+      let emailSent = false;
+      let emailError = '';
+
+      if (smtpHost && smtpPort && smtpUser && smtpPass) {
+        try {
+          const smtpPortNumber = parseInt(smtpPort, 10);
+          const transporter = nodemailer.createTransport({
+            host: smtpHost,
+            port: smtpPortNumber,
+            secure: smtpPortNumber === 465,
+            auth: {
+              user: smtpUser,
+              pass: smtpPass,
+            },
+            tls: {
+              rejectUnauthorized: false
+            }
+          });
+
+          const mailOptions = {
+            from: `"PRVASIQ Travel" <${smtpFrom}>`,
+            to: email,
+            subject: 'PRVASIQ - Reset Your Password',
+            text: `Hello,\n\nYour one-time password (OTP) to reset your PRVASIQ password is: ${otp}\n\nThis code will expire in 10 minutes.\n\nWarm regards,\nPRVASIQ Travel Team`,
+            html: `
             <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
               <div style="text-align: center; margin-bottom: 20px;">
                 <h1 style="color: #0f172a; margin: 0; font-size: 24px; letter-spacing: -0.5px;">PRVASIQ</h1>
@@ -864,69 +904,83 @@ async function startServer() {
               </div>
             </div>
           `,
-        };
+          };
 
-        await transporter.sendMail(mailOptions);
-        emailSent = true;
-      } catch (err: any) {
-        console.error('SMTP sending error:', err);
-        emailError = err.message || 'SMTP Configuration Error';
+          await transporter.sendMail(mailOptions);
+          emailSent = true;
+        } catch (err: unknown) {
+          console.error('SMTP sending error:', err);
+          emailError = err instanceof Error ? err.message : 'SMTP Configuration Error';
+        }
       }
-    }
 
-    if (emailSent) {
-      res.json({ success: true, email, simulated: false });
-    } else {
-      console.log(`[PRVASIQ Forgot Password OTP Simulator] Code generated for ${email}: ${otp}`);
-      res.json({
-        success: true,
-        email,
-        simulated: true,
-        sandboxOtp: otp,
-        errorInfo: emailError ? `SMTP inactive (${emailError}). Entered sandbox simulation mode.` : "Entered sandbox simulation mode."
-      });
+      if (emailSent) {
+        res.json({ success: true, email, simulated: false });
+      } else {
+        console.log(`[PRVASIQ Forgot Password OTP Simulator] Code generated for ${email}: ${otp}`);
+        res.json({
+          success: true,
+          email,
+          simulated: true,
+          sandboxOtp: otp,
+          errorInfo: emailError ? `SMTP inactive (${emailError}). Entered sandbox simulation mode.` : "Entered sandbox simulation mode."
+        });
+      }
+    } catch (error) {
+      handleAuthUnexpectedError(res, '/api/auth/forgot-password-send-otp', error);
     }
   });
 
   // Verify Reset Password OTP and apply new password
   app.post('/api/auth/reset-password', (req, res) => {
-    const { email, password, otp } = req.body;
-    if (!email || !password || !otp) {
-      res.status(400).json({ error: 'Email, new password and OTP are required' });
-      return;
-    }
-    if (password.length < 4) {
-      res.status(400).json({ error: 'Password must be at least 4 characters long' });
-      return;
-    }
+    try {
+      const { email, password, otp } = req.body ?? {};
+      if (
+        typeof email !== 'string' ||
+        typeof password !== 'string' ||
+        typeof otp !== 'string' ||
+        !email.trim() ||
+        !password.trim() ||
+        !otp.trim()
+      ) {
+        sendAuthError(res, 400, 'Email, new password and OTP are required');
+        return;
+      }
+      if (password.length < 4) {
+        sendAuthError(res, 400, 'Password must be at least 4 characters long');
+        return;
+      }
 
-    const emailKey = email.toLowerCase().trim();
-    const recordedOtp = pendingResetOtps.get(emailKey);
-    if (!recordedOtp) {
-      res.status(400).json({ error: 'No active password reset session found for this email. Please request a new code.' });
-      return;
-    }
-    if (recordedOtp.expiresAt < Date.now()) {
+      const emailKey = email.toLowerCase().trim();
+      const recordedOtp = pendingResetOtps.get(emailKey);
+      if (!recordedOtp) {
+        sendAuthError(res, 400, 'No active password reset session found for this email. Please request a new code.');
+        return;
+      }
+      if (recordedOtp.expiresAt < Date.now()) {
+        pendingResetOtps.delete(emailKey);
+        sendAuthError(res, 400, 'OTP code has expired. Please secure a new code.');
+        return;
+      }
+      if (recordedOtp.otp !== otp.trim()) {
+        sendAuthError(res, 400, 'The 6-digit verification code is invalid. Please verify and try again.');
+        return;
+      }
+
+      // OTP fits! Reset password
       pendingResetOtps.delete(emailKey);
-      res.status(400).json({ error: 'OTP code has expired. Please secure a new code.' });
-      return;
-    }
-    if (recordedOtp.otp !== otp.trim()) {
-      res.status(400).json({ error: 'The 6-digit verification code is invalid. Please verify and try again.' });
-      return;
-    }
 
-    // OTP fits! Reset password
-    pendingResetOtps.delete(emailKey);
+      const userIndex = users.findIndex(u => u.email.toLowerCase() === emailKey);
+      if (userIndex === -1) {
+        sendAuthError(res, 404, 'No account found with this email.');
+        return;
+      }
 
-    const userIndex = users.findIndex(u => u.email.toLowerCase() === emailKey);
-    if (userIndex === -1) {
-      res.status(404).json({ error: 'No account found with this email.' });
-      return;
+      users[userIndex].password = password;
+      res.json({ success: true, message: 'Password reset successfully! You can now sign in with your new password.', email: emailKey });
+    } catch (error) {
+      handleAuthUnexpectedError(res, '/api/auth/reset-password', error);
     }
-
-    users[userIndex].password = password;
-    res.json({ success: true, message: 'Password reset successfully! You can now sign in with your new password.', email: emailKey });
   });
 
   // Get Vehicles list with robust filtering
