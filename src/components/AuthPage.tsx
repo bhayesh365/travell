@@ -384,14 +384,27 @@ export default function AuthPage({ onLoginSuccess, initialRole = 'customer', ini
                             name: formattedName,
                             email: email.trim(),
                             role: 'customer',
-                            password: 'password'
+                            password: 'password',
+                            otp: '000000'
                           })
                         });
+                        
+                        if (!res.ok) {
+                          const contentType = res.headers.get('content-type');
+                          let data;
+                          if (contentType && contentType.includes('application/json')) {
+                            data = await res.json();
+                            throw new Error(data.error || `Server error: ${res.status}`);
+                          } else {
+                            const text = await res.text();
+                            throw new Error(`Server error: ${res.status} - ${text.substring(0, 100)}`);
+                          }
+                        }
+                        
                         const data = await res.json();
-                        if (!res.ok) throw new Error(data.error || 'Registration failed');
                         onLoginSuccess(data);
                       } catch (err: any) {
-                        setError(err.message);
+                        setError(err.message || 'Registration failed. Please try again.');
                       } finally {
                         setLoading(false);
                       }
@@ -416,17 +429,30 @@ export default function AuthPage({ onLoginSuccess, initialRole = 'customer', ini
                             email: email.trim(),
                             role: 'agency',
                             password: 'password',
+                            otp: '000000',
                             phone: '+91 98765 43210',
                             city: 'Surat',
                             description: 'Premium sandbox fleet provider and tourist coach specialists.',
                             address: 'Surat Central Ring Road'
                           })
                         });
+                        
+                        if (!res.ok) {
+                          const contentType = res.headers.get('content-type');
+                          let data;
+                          if (contentType && contentType.includes('application/json')) {
+                            data = await res.json();
+                            throw new Error(data.error || `Server error: ${res.status}`);
+                          } else {
+                            const text = await res.text();
+                            throw new Error(`Server error: ${res.status} - ${text.substring(0, 100)}`);
+                          }
+                        }
+                        
                         const data = await res.json();
-                        if (!res.ok) throw new Error(data.error || 'Registration failed');
                         onLoginSuccess(data);
                       } catch (err: any) {
-                        setError(err.message);
+                        setError(err.message || 'Registration failed. Please try again.');
                       } finally {
                         setLoading(false);
                       }
@@ -472,7 +498,7 @@ export default function AuthPage({ onLoginSuccess, initialRole = 'customer', ini
                   <input
                     type="email"
                     required
-                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-500 transition text-sm font-bold"
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-500 transi[...]
                     placeholder="name@example.com"
                     value={forgotEmail}
                     onChange={(e) => setForgotEmail(e.target.value)}
@@ -482,7 +508,7 @@ export default function AuthPage({ onLoginSuccess, initialRole = 'customer', ini
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full mt-6 bg-orange-500 text-white font-black py-3.5 px-4 rounded-2xl hover:bg-orange-600 hover:scale-[1.01] active:scale-[0.98] transition-all duration-150 shadow-lg shadow-orange-150 flex items-center justify-center gap-2 text-xs uppercase tracking-wider disabled:opacity-60"
+                  className="w-full mt-6 bg-orange-500 text-white font-black py-3.5 px-4 rounded-2xl hover:bg-orange-600 hover:scale-[1.01] active:scale-[0.98] transition-all duration-150 shadow-[...]
                 >
                   {loading ? 'Sending reset code...' : 'Send Password Reset Code'}
                   <ArrowRight className="w-4 h-4 text-white" />
@@ -509,7 +535,7 @@ export default function AuthPage({ onLoginSuccess, initialRole = 'customer', ini
                       required
                       maxLength={6}
                       placeholder="••••••"
-                      className="w-full px-4 py-3.5 rounded-2xl bg-white border-2 border-orange-200 text-center text-slate-800 text-lg font-mono font-black tracking-[8px] focus:outline-none focus:ring-4 focus:ring-orange-100 focus:border-orange-500 transition shadow-sm"
+                      className="w-full px-4 py-3.5 rounded-2xl bg-white border-2 border-orange-200 text-center text-slate-800 text-lg font-mono font-black tracking-[8px] focus:outline-none focus[...]
                       value={forgotOtp}
                       onChange={(e) => setForgotOtp(e.target.value.replace(/\D/g, ''))}
                     />
@@ -542,7 +568,7 @@ export default function AuthPage({ onLoginSuccess, initialRole = 'customer', ini
                     type="password"
                     required
                     minLength={4}
-                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-500 transition text-sm font-bold"
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-500 transi[...]
                     placeholder="••••••••"
                     value={forgotNewPassword}
                     onChange={(e) => setForgotNewPassword(e.target.value)}
@@ -554,7 +580,7 @@ export default function AuthPage({ onLoginSuccess, initialRole = 'customer', ini
                   <input
                     type="password"
                     required
-                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-500 transition text-sm font-bold"
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-500 transi[...]
                     placeholder="••••••••"
                     value={forgotConfirmPassword}
                     onChange={(e) => setForgotConfirmPassword(e.target.value)}
@@ -564,7 +590,7 @@ export default function AuthPage({ onLoginSuccess, initialRole = 'customer', ini
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full mt-4 bg-orange-500 text-white font-black py-3.5 px-4 rounded-2xl hover:bg-orange-600 hover:scale-[1.01] active:scale-[0.98] transition-all duration-150 shadow-lg shadow-orange-150 flex items-center justify-center gap-2 text-xs uppercase tracking-wider disabled:opacity-60"
+                  className="w-full mt-4 bg-orange-500 text-white font-black py-3.5 px-4 rounded-2xl hover:bg-orange-600 hover:scale-[1.01] active:scale-[0.98] transition-all duration-150 shadow-[...]
                 >
                   {loading ? 'Updating Password...' : 'Verify OTP & Reset Password'}
                   <ArrowRight className="w-4 h-4 text-white" />
@@ -587,7 +613,7 @@ export default function AuthPage({ onLoginSuccess, initialRole = 'customer', ini
                   setSandboxOtp(null);
                   setInfoMessage('');
                 }}
-                className={`flex-1 pb-3 text-center border-b-4 transition-all ${!isRegistering ? 'border-orange-500 text-orange-600 font-black' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                className={`flex-1 pb-3 text-center border-b-4 transition-all ${!isRegistering ? 'border-orange-500 text-orange-600 font-black' : 'border-transparent text-slate-400 hover:text-sla[...]
               >
                 Sign In
               </button>
@@ -602,7 +628,7 @@ export default function AuthPage({ onLoginSuccess, initialRole = 'customer', ini
                   setSandboxOtp(null);
                   setInfoMessage('');
                 }}
-                className={`flex-1 pb-3 text-center border-b-4 transition-all ${isRegistering ? 'border-orange-500 text-orange-600 font-black' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                className={`flex-1 pb-3 text-center border-b-4 transition-all ${isRegistering ? 'border-orange-500 text-orange-600 font-black' : 'border-transparent text-slate-400 hover:text-slat[...]
               >
                 Create Account
               </button>
@@ -646,7 +672,7 @@ export default function AuthPage({ onLoginSuccess, initialRole = 'customer', ini
                         required
                         maxLength={6}
                         placeholder="••••••"
-                        className="w-full px-4 py-3.5 rounded-2xl bg-white border-2 border-emerald-200 text-center text-slate-800 text-lg font-mono font-black tracking-[8px] focus:outline-none focus:ring-4 focus:ring-emerald-100 focus:border-emerald-500 transition shadow-sm"
+                        className="w-full px-4 py-3.5 rounded-2xl bg-white border-2 border-emerald-200 text-center text-slate-800 text-lg font-mono font-black tracking-[8px] focus:outline-none fo[...]
                         value={otp}
                         onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                       />
@@ -695,7 +721,7 @@ export default function AuthPage({ onLoginSuccess, initialRole = 'customer', ini
                       <input
                         type="text"
                         required
-                        className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-500 transition text-sm font-bold"
+                        className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-500 tr[...]
                         placeholder="Rohan Sharma / Vikram Travels"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
@@ -707,7 +733,7 @@ export default function AuthPage({ onLoginSuccess, initialRole = 'customer', ini
                       <input
                         type="email"
                         required
-                        className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-500 transition text-sm font-bold"
+                        className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-500 tr[...]
                         placeholder="name@example.com"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
@@ -720,7 +746,7 @@ export default function AuthPage({ onLoginSuccess, initialRole = 'customer', ini
                         type="password"
                         required
                         minLength={4}
-                        className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-500 transition text-sm font-bold"
+                        className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-500 tr[...]
                         placeholder="••••••••"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
@@ -732,7 +758,7 @@ export default function AuthPage({ onLoginSuccess, initialRole = 'customer', ini
                       <input
                         type="password"
                         required
-                        className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-500 transition text-sm font-bold"
+                        className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-500 tr[...]
                         placeholder="••••••••"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
@@ -745,7 +771,7 @@ export default function AuthPage({ onLoginSuccess, initialRole = 'customer', ini
                         <button
                           type="button"
                           onClick={() => setRole('customer')}
-                          className={`flex items-center justify-center gap-2 p-3 text-xs border rounded-2xl font-extrabold transition duration-200 ${role === 'customer' ? 'bg-orange-500 border-orange-500 text-white shadow-md shadow-orange-100' : 'bg-slate-50 border-slate-100 text-slate-600 hover:bg-slate-100'}`}
+                          className={`flex items-center justify-center gap-2 p-3 text-xs border rounded-2xl font-extrabold transition duration-200 ${role === 'customer' ? 'bg-orange-500 border-or[...]
                         >
                           <User className="w-4 h-4" />
                           Customer
@@ -753,7 +779,7 @@ export default function AuthPage({ onLoginSuccess, initialRole = 'customer', ini
                         <button
                           type="button"
                           onClick={() => setRole('agency')}
-                          className={`flex items-center justify-center gap-2 p-3 text-xs border rounded-2xl font-extrabold transition duration-200 ${role === 'agency' ? 'bg-teal-600 border-teal-600 text-white shadow-md shadow-teal-100' : 'bg-slate-50 border-slate-100 text-slate-600 hover:bg-slate-100'}`}
+                          className={`flex items-center justify-center gap-2 p-3 text-xs border rounded-2xl font-extrabold transition duration-200 ${role === 'agency' ? 'bg-teal-600 border-teal-6[...]
                         >
                           <Briefcase className="w-4 h-4" />
                           Travel Agency
@@ -769,7 +795,7 @@ export default function AuthPage({ onLoginSuccess, initialRole = 'customer', ini
                           <label className="block text-[10px] uppercase font-black text-slate-400 tracking-wider ml-1 mb-1">Contact Number</label>
                           <input
                             type="text"
-                            className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-500 transition text-sm font-bold"
+                            className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-500 tr[...]
                             placeholder="+91 98XXX XXXXX"
                             required={role === 'agency'}
                             value={phone}
@@ -780,7 +806,7 @@ export default function AuthPage({ onLoginSuccess, initialRole = 'customer', ini
                         <div>
                           <label className="block text-[10px] uppercase font-black text-slate-400 tracking-wider ml-1 mb-1">Primary Base City</label>
                           <select
-                            className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-500 transition text-sm font-bold bg-white"
+                            className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-500 tr[...]
                             value={city}
                             onChange={(e) => setCity(e.target.value)}
                           >
@@ -797,7 +823,7 @@ export default function AuthPage({ onLoginSuccess, initialRole = 'customer', ini
                           <label className="block text-[10px] uppercase font-black text-slate-400 tracking-wider ml-1 mb-1">Company Description</label>
                           <textarea
                             rows={2}
-                            className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-500 transition text-sm font-bold"
+                            className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-500 tr[...]
                             placeholder="Briefly describe your fleet services..."
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
@@ -808,7 +834,7 @@ export default function AuthPage({ onLoginSuccess, initialRole = 'customer', ini
                           <label className="block text-[10px] uppercase font-black text-slate-400 tracking-wider ml-1 mb-1">Office Address</label>
                           <input
                             type="text"
-                            className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-500 transition text-sm font-bold"
+                            className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-500 tr[...]
                             placeholder="Office floor, Market complex, landmark..."
                             value={address}
                             onChange={(e) => setAddress(e.target.value)}
@@ -822,7 +848,7 @@ export default function AuthPage({ onLoginSuccess, initialRole = 'customer', ini
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full mt-4 bg-orange-500 text-white font-black py-3.5 px-4 rounded-2xl hover:bg-orange-600 hover:scale-[1.01] active:scale-[0.98] transition-all duration-150 shadow-lg shadow-orange-150 flex items-center justify-center gap-2 text-xs uppercase tracking-wider disabled:opacity-60 disabled:pointer-events-none"
+                  className="w-full mt-4 bg-orange-500 text-white font-black py-3.5 px-4 rounded-2xl hover:bg-orange-600 hover:scale-[1.01] active:scale-[0.98] transition-all duration-150 shadow-[...]
                 >
                   {isOtpRequested ? (
                     loading ? 'Verifying...' : 'Verify OTP & Create Account'
@@ -839,7 +865,7 @@ export default function AuthPage({ onLoginSuccess, initialRole = 'customer', ini
                   <input
                     type="email"
                     required
-                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-500 transition text-sm font-bold"
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-500 transi[...]
                     placeholder="name@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -868,7 +894,7 @@ export default function AuthPage({ onLoginSuccess, initialRole = 'customer', ini
                   <input
                     type="password"
                     required
-                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-500 transition text-sm font-bold"
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-500 transi[...]
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -878,7 +904,7 @@ export default function AuthPage({ onLoginSuccess, initialRole = 'customer', ini
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full mt-6 bg-orange-500 text-white font-black py-3.5 px-4 rounded-2xl hover:bg-orange-600 hover:scale-[1.01] active:scale-[0.98] transition-all duration-150 shadow-lg shadow-orange-150 flex items-center justify-center gap-2 text-xs uppercase tracking-wider"
+                  className="w-full mt-6 bg-orange-500 text-white font-black py-3.5 px-4 rounded-2xl hover:bg-orange-600 hover:scale-[1.01] active:scale-[0.98] transition-all duration-150 shadow-[...]
                 >
                   {loading ? 'Verifying...' : 'Sign In'}
                   <ArrowRight className="w-4 h-4 text-white" />
